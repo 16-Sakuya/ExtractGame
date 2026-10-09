@@ -48,6 +48,8 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* InteractAction_f;
 
 public:
 
@@ -66,6 +68,9 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	//f按键映射
+	void Interact_f(const FInputActionValue& Value);
 
 public:
 

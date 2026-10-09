@@ -65,6 +65,9 @@ void AExtractGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AExtractGameCharacter::Look);
+
+		//f按键映射
+		EnhancedInputComponent->BindAction(InteractAction_f, ETriggerEvent::Started, this, &AExtractGameCharacter::Interact_f);
 	}
 	else
 	{
@@ -130,4 +133,9 @@ void AExtractGameCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+void AExtractGameCharacter::Interact_f(const FInputActionValue&)
+{
+	UE_LOG(LogExtractGame, Display, TEXT("f按下"));
 }
