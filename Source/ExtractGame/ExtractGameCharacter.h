@@ -50,6 +50,9 @@ protected:
 	UInputAction* MouseLookAction;
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* InteractAction_f;
+	//战利品数量
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	int32 LootCount = 0;
 
 public:
 
