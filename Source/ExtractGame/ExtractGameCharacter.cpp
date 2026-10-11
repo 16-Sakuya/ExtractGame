@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "ExtractGame.h"
+#include "LootPickup.h"
 
 AExtractGameCharacter::AExtractGameCharacter()
 {
@@ -38,7 +39,7 @@ AExtractGameCharacter::AExtractGameCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
+	CameraBoom->TargetArmLength = 250.0f;//弹簧臂长度
 	CameraBoom->bUsePawnControlRotation = true;
 
 	// Create a follow camera
@@ -138,4 +139,26 @@ void AExtractGameCharacter::DoJumpEnd()
 void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 {
 	UE_LOG(LogExtractGame, Display, TEXT("f按下"));
+	if (GetController() == nullptr || GetWorld() == nullptr) { return;  }
+
+	FVector ViewLocation;// 玩家视角位置
+	FRotator ViewRotation;// 玩家视角旋转
+	GetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);// 获取玩家视角位置和旋转
+	const FVector TraceEnd = ViewLocation + ViewRotation.Vector() * 500.f;// 计算射线终点位置
+
+	FHitResult Hit;// 射线检测结果
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(InteractTrace), false, this);// 创建射线检测参数。设置射线检测名称，不使用复杂碰撞检测，忽略自身
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		Hit,				// 射线检测结果
+		ViewLocation,		// 射线起点位置
+		TraceEnd,			// 射线终点位置
+		ECC_Visibility,		// 指定射线检测通道，物体需要在这个通道上阻挡射线，检测才能命中
+		QueryParams)		// 把刚才创建的检测参数传进去，并结束这次射线调用。若射线碰到了物体，函数返回 true
+		) {
+		if (ALootPickup* Loot = Cast<ALootPickup>(Hit.GetActor())) {//获取命中的物体并尝试将其转换为 ALootPickup
+			UE_LOG(LogExtractGame, Display, TEXT("拾取战利品"));
+			Loot->Destroy();//销毁战利品
+		}
+	}
 }
