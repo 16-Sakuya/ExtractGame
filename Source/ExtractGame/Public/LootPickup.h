@@ -21,6 +21,9 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* MeshComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	//战利品名称
+	FName LootName = NAME_None;
 
 protected:
 	// Called when the game starts or when spawned
@@ -29,5 +32,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	
+	//获取战利品名称
+	FName GetLootName() const { return LootName; }
 
 };

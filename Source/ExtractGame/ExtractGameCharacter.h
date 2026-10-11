@@ -52,7 +52,8 @@ protected:
 	UInputAction* InteractAction_f;
 	//战利品数量
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
-	int32 LootCount = 0;
+	//战利品清单表
+	TMap<FName, int32> LootCount;
 
 public:
 

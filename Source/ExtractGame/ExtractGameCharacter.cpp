@@ -157,7 +157,13 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		QueryParams)		// 把刚才创建的检测参数传进去，并结束这次射线调用。若射线碰到了物体，函数返回 true
 		) {
 		if (ALootPickup* Loot = Cast<ALootPickup>(Hit.GetActor())) {//获取命中的物体并尝试将其转换为 ALootPickup
-			UE_LOG(LogExtractGame, Display, TEXT("拾取战利品, 当前数量：%d"), ++LootCount);
+			const FName LootName = Loot->GetLootName();//获取战利品名称
+			int32& Count = LootCount.FindOrAdd(LootName);//在战利品清单表中查找战利品名称，如果不存在则添加并返回引用
+			Count++;//战利品数量加一
+			UE_LOG(LogExtractGame, Display,
+				TEXT("拾取战利品：%s，当前数量：%d"),
+				*LootName.ToString(),
+				Count);//打印拾取战利品的名称和当前数量
 			Loot->Destroy();//销毁战利品
 		}
 	}
