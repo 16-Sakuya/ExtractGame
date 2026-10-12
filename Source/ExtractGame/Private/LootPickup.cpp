@@ -66,7 +66,9 @@ void ALootPickup::Tick(float DeltaTime)
 void ALootPickup::OnDetectionBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (Cast<ACharacter>(OtherActor)) {
-		Name->SetText(FText::FromName(LootName));//设置战利品名称
+		//设置战利品名称
+		const FString PromptText = FString::Printf(TEXT("%s\n按[F]拾取"), *LootName.ToString());
+		Name->SetText(FText::FromString(PromptText));
 		Name->SetVisibility(true);//显示战利品名称
 
 		Name->SetRelativeLocation(FVector(0.f, 0.f, 200.f));
