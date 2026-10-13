@@ -12,6 +12,8 @@
 #include "InputActionValue.h"
 #include "ExtractGame.h"
 #include "LootPickup.h"
+#include "Exfil.h"
+#include "EngineUtils.h"//提供查找关卡中撤离点的TActorIterator
 
 AExtractGameCharacter::AExtractGameCharacter()
 {
@@ -138,6 +140,7 @@ void AExtractGameCharacter::DoJumpEnd()
 
 void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 {
+	if (hasOverlap) { return;  }
 	UE_LOG(LogExtractGame, Display, TEXT("f按下"));
 	if (GetController() == nullptr || GetWorld() == nullptr) { return;  }
 
@@ -167,6 +170,19 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 				Count,
 				TotalValue);//打印拾取战利品的名称和当前数量
 			Loot->Destroy();//销毁战利品
+			return;
 		}
+	}
+
+	//撤离点交互
+	for (TActorIterator<AExfil> Exfil(GetWorld()); Exfil; ++Exfil) {
+		if (!Exfil->isOverlap(this)) { continue;  }
+
+		hasOverlap = true;
+		UE_LOG(LogExtractGame, Display, TEXT("撤离结算：#%d"), TotalValue);
+		for (const TPair<FName, int32>& tLoot : LootCount) {
+			UE_LOG(LogExtractGame, Display, TEXT("战利品：%s	数量：%d"), *tLoot.Key.ToString(), tLoot.Value);
+		}
+		return;
 	}
 }

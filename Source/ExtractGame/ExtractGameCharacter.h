@@ -51,11 +51,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* InteractAction_f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	//战利品清单表
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TMap<FName, int32> LootCount;
+	//总价值
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	int32 TotalValue = 0;
+
+	//是否已撤离
+	bool hasOverlap = false;
 
 public:
 
