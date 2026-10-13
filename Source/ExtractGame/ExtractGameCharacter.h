@@ -100,6 +100,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
+	//撤离结算
+	UFUNCTION(BlueprintImplementableEvent, Category = "Exfil")
+	void ExfilSettle(int32 FinalValue);
+
 public:
 
 	/** Returns CameraBoom subobject **/

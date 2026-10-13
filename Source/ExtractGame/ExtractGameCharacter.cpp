@@ -179,6 +179,7 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		if (!Exfil->isOverlap(this)) { continue;  }
 
 		hasOverlap = true;
+		ExfilSettle(TotalValue);
 		UE_LOG(LogExtractGame, Display, TEXT("撤离结算：#%d"), TotalValue);
 		for (const TPair<FName, int32>& tLoot : LootCount) {
 			UE_LOG(LogExtractGame, Display, TEXT("战利品：%s	数量：%d"), *tLoot.Key.ToString(), tLoot.Value);
