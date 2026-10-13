@@ -23,7 +23,7 @@ ALootPickup::ALootPickup()
 	//创建检测范围球体组件
 	DetectionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("DetectionSphere"));
 	DetectionSphere->SetupAttachment(MeshComponent);
-	DetectionSphere->SetSphereRadius(500.f);//设置检测范围半径为500
+	DetectionSphere->SetSphereRadius(300.f);//设置检测范围半径为300
 	DetectionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	DetectionSphere->SetGenerateOverlapEvents(true);//启用重叠事件
 	DetectionSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -78,7 +78,7 @@ void ALootPickup::OnDetectionBegin(UPrimitiveComponent* OverlappedComponent, AAc
 {
 	if (Cast<ACharacter>(OtherActor)) {
 		//设置战利品名称
-		const FString PromptText = FString::Printf(TEXT("%s\n按[F]拾取"), *LootName.ToString());
+		const FString PromptText = FString::Printf(TEXT("%s(#%d)\n按[F]拾取"), *LootName.ToString(), LootValue);
 		/*UE_LOG(LogTemp, Warning, TEXT("拾取提示诊断：文本=[%s]，字体=[%s]，缓存=[%s]，字符数=%d，纹理页数=%d，Remapped=%d"),
 			*PromptText,
 			*GetNameSafe(Name->Font),

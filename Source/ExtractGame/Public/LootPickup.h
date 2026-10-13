@@ -37,6 +37,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
 	//战利品名称
 	FName LootName = NAME_None;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	int32 LootValue;
 
 protected:
 	// Called when the game starts or when spawned
@@ -67,5 +69,7 @@ public:
 	
 	//获取战利品名称
 	FName GetLootName() const { return LootName; }
+	//获取战利品价值
+	int32 GetLootValue() const { return LootValue; }
 
 };

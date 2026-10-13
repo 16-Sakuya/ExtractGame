@@ -160,10 +160,12 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 			const FName LootName = Loot->GetLootName();//获取战利品名称
 			int32& Count = LootCount.FindOrAdd(LootName);//在战利品清单表中查找战利品名称，如果不存在则添加并返回引用
 			Count++;//战利品数量加一
+			TotalValue += Loot->GetLootValue();//战利品总价值加上战利品的价值
 			UE_LOG(LogExtractGame, Display,
-				TEXT("拾取战利品：%s，当前数量：%d"),
+				TEXT("拾取战利品：%s，当前数量：%d, 当前总价值：#%d"),
 				*LootName.ToString(),
-				Count);//打印拾取战利品的名称和当前数量
+				Count,
+				TotalValue);//打印拾取战利品的名称和当前数量
 			Loot->Destroy();//销毁战利品
 		}
 	}
