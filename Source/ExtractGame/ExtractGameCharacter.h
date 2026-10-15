@@ -102,7 +102,7 @@ public:
 
 	//撤离结算
 	UFUNCTION(BlueprintImplementableEvent, Category = "Exfil")
-	void ExfilSettle(int32 FinalValue);
+	void ExfilSettle(int32 FinalValue, const FText& LootList);
 
 public:
 
