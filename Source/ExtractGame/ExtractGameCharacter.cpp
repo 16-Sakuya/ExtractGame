@@ -185,7 +185,7 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 			UE_LOG(LogExtractGame, Display, TEXT("战利品：%s	数量：%d"), *tLoot.Key.ToString(), tLoot.Value);
 			LootList += FString::Printf(TEXT("%20s	#%d\n"), *tLoot.Key.ToString(), tLoot.Value);
 		}
-		if (LootList.IsEmpty()) { LootList = TEXT("无"); }
+		if (LootList.IsEmpty()) { LootList = TEXT("未获取战利品"); }
 		ExfilSettle(TotalValue, FText::FromString(LootList));
 		return;
 	}
