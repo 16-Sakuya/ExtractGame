@@ -183,7 +183,7 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		FString LootList;
 		for (const TPair<FName, int32>& tLoot : LootCount) {
 			UE_LOG(LogExtractGame, Display, TEXT("战利品：%s	数量：%d"), *tLoot.Key.ToString(), tLoot.Value);
-			LootList += FString::Printf(TEXT("%20s	#%d\n"), *tLoot.Key.ToString(), tLoot.Value);
+			LootList += FString::Printf(TEXT("%20s	%d\n"), *tLoot.Key.ToString(), tLoot.Value);
 		}
 		if (LootList.IsEmpty()) { LootList = TEXT("未获取战利品"); }
 		ExfilSettle(TotalValue, FText::FromString(LootList));
