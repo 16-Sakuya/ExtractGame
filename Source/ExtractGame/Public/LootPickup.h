@@ -72,4 +72,10 @@ public:
 	//获取战利品价值
 	int32 GetLootValue() const { return LootValue; }
 
+	//丢弃战利品
+	void DroppedLoot(FName InName, int32 InValue) {
+		LootName = InName;
+		LootValue = InValue;
+	}
+
 };

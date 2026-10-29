@@ -10,6 +10,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
+class ALootPickup;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -103,6 +104,11 @@ public:
 	//撤离结算
 	UFUNCTION(BlueprintImplementableEvent, Category = "Exfil")
 	void ExfilSettle(int32 FinalValue, const FText& LootList);
+
+	//丢弃物品
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value);
 
 public:
 

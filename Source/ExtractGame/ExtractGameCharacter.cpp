@@ -190,3 +190,36 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		return;
 	}
 }
+
+//丢弃物品
+bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value) {
+	int32* count = LootCount.Find(ItemId);
+	if (!count || *count <= 0 || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld()) { return false; }
+
+	const FVector TraceStart = GetActorLocation() + GetActorForwardVector() * 180.f + FVector(0, 0, 100.f);//取角色前方 180 cm、上方 100 cm 的位置
+	const FVector TraceEnd = TraceStart - FVector(0, 0, 500.f);//从起点向下延伸500cm
+	FHitResult GroundHit;//保存射线命中位置，用于放置战利品
+	FCollisionQueryParams QueryParams;//创建检测位置
+	QueryParams.AddIgnoredActor(this);//避免射线打到自己
+
+	if (!GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams)) { return false;  }
+
+	const FTransform SpawnTransform(
+		FRotator::ZeroRotator,
+		GroundHit.ImpactPoint + FVector(0.f, 0.f, 30.f)//把生成位置设在命中地面上方 30 cm；这个高度后续可以根据模型中心调整
+	);
+
+	ALootPickup* DroppedLoot = GetWorld()->SpawnActorDeferred<ALootPickup>(//先创建 Actor，暂不完成它的生成
+		LootClass.Get(), SpawnTransform, nullptr, this, //使用数据表指定的战利品蓝图，不指定拥有者，角色作为生成者
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn//允许在指定位置创建；是否与附近物体重叠要在游戏中检查
+	);
+	if (!DroppedLoot) { return false; }//创建失败就退出，背包暂不扣物品
+
+	DroppedLoot->DroppedLoot(ItemId, static_cast<int32>(Value));//在物体进入场景前写入物品 ID 和价值
+	DroppedLoot->FinishSpawning(SpawnTransform);//完成生成。UE 的延迟生成流程要求调用这一步
+
+	--(*count);
+	TotalValue -= static_cast<int32>(Value);
+	if (*count == 0) { LootCount.Remove(ItemId); }
+	return true;
+}
