@@ -194,29 +194,38 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 //丢弃物品
 bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value) {
 	int32* count = LootCount.Find(ItemId);
-	if (!count || *count <= 0 || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld()) { return false; }
+	if (!count || *count <= 0 || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld() ||!FollowCamera) { return false; }
 
-	const FVector TraceStart = GetActorLocation() + GetActorForwardVector() * 180.f + FVector(0, 0, 100.f);//取角色前方 180 cm、上方 100 cm 的位置
-	const FVector TraceEnd = TraceStart - FVector(0, 0, 500.f);//从起点向下延伸500cm
-	FHitResult GroundHit;//保存射线命中位置，用于放置战利品
-	FCollisionQueryParams QueryParams;//创建检测位置
-	QueryParams.AddIgnoredActor(this);//避免射线打到自己
+	const FVector CmrLct = FollowCamera->GetComponentLocation();//相机位置
+	const FVector DrpDir = FRotator(0.f, FollowCamera->GetComponentRotation().Yaw, 0.f).Vector();//获取相机朝向的水平方向
+	const FVector DsrLct = GetActorLocation() + DrpDir * (GetCapsuleComponent()->GetScaledCapsuleRadius() + 100.f) + FVector(0.f, 0.f, 50.f);//把生成目标放在角色碰撞胶囊前方 100 cm，并抬高 50 cm，让物品落下。这里改用角色作为位置起点，因为“相机前方 50 cm”与“角色前方”在当前第三人称视角下不是同一位置
 
-	if (!GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams)) { return false;  }
+	//射线检测忽略角色自身
+	FCollisionQueryParams QryPrms;
+	QryPrms.AddIgnoredActor(this);
+	FHitResult FrtHit;//保存摄像机到目标位置之间的首次碰撞
+	FVector SpawnLct = DsrLct;//默认使用DsrLct的位置
 
-	const FTransform SpawnTransform(
-		FRotator::ZeroRotator,
-		GroundHit.ImpactPoint + FVector(0.f, 0.f, 30.f)//把生成位置设在命中地面上方 30 cm；这个高度后续可以根据模型中心调整
-	);
+	//检查这50cm是否被地面挡住；返回首个阻挡命中
+	if (GetWorld()->LineTraceSingleByChannel(FrtHit, CmrLct, DsrLct, ECC_Visibility, QryPrms)) {
+		if (FrtHit.ImpactNormal.Z < 0.5f) { return false; }//判断命中的表面是否朝上；若撞到墙等侧面，返回失败，避免把战利品生成到墙里
+		SpawnLct = FrtHit.ImpactPoint;//射线先碰到地面时，改用交点作为生成位置
+	}
+	const FTransform SpawnTrsf(FRotator::ZeroRotator, SpawnLct);//把最终位置交给现有的延迟生成代码
 
 	ALootPickup* DroppedLoot = GetWorld()->SpawnActorDeferred<ALootPickup>(//先创建 Actor，暂不完成它的生成
-		LootClass.Get(), SpawnTransform, nullptr, this, //使用数据表指定的战利品蓝图，不指定拥有者，角色作为生成者
+		LootClass.Get(), SpawnTrsf, nullptr, this, //使用数据表指定的战利品蓝图，不指定拥有者，角色作为生成者
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn//允许在指定位置创建；是否与附近物体重叠要在游戏中检查
 	);
 	if (!DroppedLoot) { return false; }//创建失败就退出，背包暂不扣物品
 
 	DroppedLoot->DroppedLoot(ItemId, static_cast<int32>(Value));//在物体进入场景前写入物品 ID 和价值
-	DroppedLoot->FinishSpawning(SpawnTransform);//完成生成。UE 的延迟生成流程要求调用这一步
+	DroppedLoot->FinishSpawning(SpawnTrsf);//完成生成。UE 的延迟生成流程要求调用这一步
+
+	if (!DroppedLoot->DroppedPhysics()) {//尝试让刚生成的网格开启碰撞、物理模拟和重力
+		DroppedLoot->Destroy();//清理无法正常掉落的 Actor
+		return false;
+	}
 
 	--(*count);
 	TotalValue -= static_cast<int32>(Value);

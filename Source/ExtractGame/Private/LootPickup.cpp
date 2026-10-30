@@ -59,7 +59,21 @@ void ALootPickup::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	//这里先等待至少 0.3 秒；物理刚启动时若尚未更新，就不会立刻关闭。IsAnyRigidBodyAwake() 为 false 时表示网格已休眠；随后关闭模拟，保留网格碰撞，让角色不能再推着它走
+	if (DrpToStl && MeshComponent) {
+		DrpPhysicsElapsed += DeltaTime;
+		if (DrpPhysicsElapsed >= 0.3f && !MeshComponent->IsAnyRigidBodyAwake()) {
+			MeshComponent->SetSimulatePhysics(false);
+			DrpToStl = false;
+		}
+	}
+
 	if (Name == nullptr || !Name->IsVisible()) { return; }//如果文本渲染组件为空或者不可见，则不执行后续代码
+
+	Name->SetWorldLocation(
+		MeshComponent->Bounds.Origin//网格当前的世界中心
+		+ FVector(0.f, 0.f, MeshComponent->Bounds.BoxExtent.Z + 30.f)//.Z到达网格顶部，再给30cm展示文字。每帧用世界位置更新
+	);
 
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
 	if (PlayerController == nullptr || PlayerController->PlayerCameraManager == nullptr) { return; }//如果玩家控制器为空或者玩家摄像机管理器为空，则不执行后续代码
@@ -124,7 +138,6 @@ void ALootPickup::OnDetectionBegin(UPrimitiveComponent* OverlappedComponent, AAc
 		Name->SetText(FText::FromString(PromptText));
 		Name->SetVisibility(true);//显示战利品名称
 
-		Name->SetRelativeLocation(FVector(0.f, 0.f, 200.f));
 		Name->SetWorldSize(30.f);
 		Name->SetTextRenderColor(FColor::Black);
 	}
@@ -135,4 +148,22 @@ void ALootPickup::OnDetectionEnd(UPrimitiveComponent* OverlappedComponent, AActo
 	if (Cast<ACharacter>(OtherActor)) {
 		Name->SetVisibility(false);//隐藏战利品名称
 	}
+}
+
+bool ALootPickup::DroppedPhysics() {
+	if (!MeshComponent || !MeshComponent->GetStaticMesh()) { return false; }//没有网格时不尝试模拟
+
+	MeshComponent->SetMobility(EComponentMobility::Movable);//允许网格移动
+	//启用物理碰撞并将其作为物理物体
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	MeshComponent->SetCollisionObjectType(ECC_PhysicsBody);
+
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);//让他能碰到地面等物体
+	//MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);//设为忽略：避免掉落物阻挡角色。原有的检测球仍负责角色重叠
+	MeshComponent->SetSimulatePhysics(true);//开始物理模拟
+	MeshComponent->SetEnableGravity(true);//让模拟中的网格受重力影响（UE 规定重力设置仅对开启物理模拟的组件生效）
+
+	DrpPhysicsElapsed = 0.f;//重置计时
+	DrpToStl = MeshComponent->IsSimulatingPhysics();//确认物理模拟确实启动并开始等待落稳
+	return DrpToStl;
 }

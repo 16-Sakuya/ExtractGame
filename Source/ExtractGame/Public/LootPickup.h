@@ -78,4 +78,10 @@ public:
 		LootValue = InValue;
 	}
 
+	//物理函数
+	bool DroppedPhysics();
+
+protected:
+	bool DrpToStl = false;//记录该物品正在等待落稳
+	float DrpPhysicsElapsed = 0.f;//记录开启物理后的时间，避免刚生成的那一帧就误判为休眠
 };
