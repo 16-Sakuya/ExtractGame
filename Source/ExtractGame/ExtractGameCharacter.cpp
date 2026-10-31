@@ -14,6 +14,7 @@
 #include "LootPickup.h"
 #include "Exfil.h"
 #include "EngineUtils.h"//提供查找关卡中撤离点的TActorIterator
+#include "GameFramework/PlayerController.h"//提供玩家控制器函数
 
 AExtractGameCharacter::AExtractGameCharacter()
 {
@@ -137,39 +138,27 @@ void AExtractGameCharacter::DoJumpEnd()
 	// signal the character to stop jumping
 	StopJumping();
 }
-
+//f按键映射
 void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 {
 	if (hasOverlap) { return;  }
 	UE_LOG(LogExtractGame, Display, TEXT("f按下"));
 	if (GetController() == nullptr || GetWorld() == nullptr) { return;  }
 
-	FVector ViewLocation;// 玩家视角位置
-	FRotator ViewRotation;// 玩家视角旋转
-	GetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);// 获取玩家视角位置和旋转
-	const FVector TraceEnd = ViewLocation + ViewRotation.Vector() * 500.f;// 计算射线终点位置
+	const TArray<ALootPickup*> NearLoot = GetNearLoot();//读取刚筛选并排序的列表
+	if (!NearLoot.IsEmpty()) {
+		ALootPickup* Loot = NearLoot[0];
+		if (IsValid(Loot)) {//检查物品仍有效
+			const FName LtName = Loot->GetLootName();
+			const int32 LtVal = Loot->GetLootValue();
 
-	FHitResult Hit;// 射线检测结果
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(InteractTrace), false, this);// 创建射线检测参数。设置射线检测名称，不使用复杂碰撞检测，忽略自身
+			if (!Loot->Destroy()) { return; }
 
-	if (GetWorld()->LineTraceSingleByChannel(
-		Hit,				// 射线检测结果
-		ViewLocation,		// 射线起点位置
-		TraceEnd,			// 射线终点位置
-		ECC_Visibility,		// 指定射线检测通道，物体需要在这个通道上阻挡射线，检测才能命中
-		QueryParams)		// 把刚才创建的检测参数传进去，并结束这次射线调用。若射线碰到了物体，函数返回 true
-		) {
-		if (ALootPickup* Loot = Cast<ALootPickup>(Hit.GetActor())) {//获取命中的物体并尝试将其转换为 ALootPickup
-			const FName LootName = Loot->GetLootName();//获取战利品名称
-			int32& Count = LootCount.FindOrAdd(LootName);//在战利品清单表中查找战利品名称，如果不存在则添加并返回引用
-			Count++;//战利品数量加一
-			TotalValue += Loot->GetLootValue();//战利品总价值加上战利品的价值
-			UE_LOG(LogExtractGame, Display,
-				TEXT("拾取战利品：%s，当前数量：%d, 当前总价值：#%d"),
-				*LootName.ToString(),
-				Count,
-				TotalValue);//打印拾取战利品的名称和当前数量
-			Loot->Destroy();//销毁战利品
+			int32& Cnt = LootCount.FindOrAdd(LtName);
+			++Cnt;
+			TotalValue += LtVal;
+
+			UE_LOG(LogExtractGame, Display, TEXT("拾取战利品：%s	数量：%d	价值：#%d"), *LtName.ToString(), Cnt, LtVal);
 			return;
 		}
 	}
@@ -189,6 +178,62 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		ExfilSettle(TotalValue, FText::FromString(LootList));
 		return;
 	}
+}
+
+//显示周围战利品
+TArray<ALootPickup*> AExtractGameCharacter::GetNearLoot() const{
+	TArray<ALootPickup*> Res;//存放找到的战利品
+	if (!GetWorld()) { return Res; }//关卡不可用时返回空列表
+
+	const APlayerController* PC = Cast<APlayerController>(GetController());//获取玩家控制器
+	if (!PC) { return Res; }//没有玩家控制器时返回空列表
+
+	//获取屏幕宽度和高度。尺寸无效返回空列表
+	int32 ScrWidth = 0, ScrHeight = 0;
+	PC->GetViewportSize(ScrWidth, ScrHeight);
+	if (ScrWidth <= 0 || ScrHeight <= 0) { return Res; }
+
+	//视角位置和方向
+	FVector ViewLct;
+	FRotator ViewRtt;
+	PC->GetPlayerViewPoint(ViewLct, ViewRtt);//取得摄像机视角
+	const FCollisionQueryParams SightParams(SCENE_QUERY_STAT(NearLootSight), false, this);//设置射线检测，并忽略角色自身
+
+	for (TActorIterator<ALootPickup> It(GetWorld()); It; ++It) {
+		const FVector LootToPlayer = It->GetActorLocation() - GetActorLocation();//战利品相对角色的位置
+		const float HrztReach = GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;//角色胶囊体半径再向外延申50cm
+		const float VtcReach = GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 50.f;//限制上下距离防止把不同楼层的战利品算入
+
+		//检查战利品距离
+		if(LootToPlayer.SizeSquared2D() > FMath::Square(HrztReach) || FMath::Abs(LootToPlayer.Z) > VtcReach) { continue; }
+
+		const FVector LootCenter = It->GetRootComponent()->Bounds.Origin;//取得战利品网格的中心
+
+		//这段把物品位置投影到屏幕；投影失败或落在画面外，就跳过该物品
+		FVector2D ScrPos;
+		if (!PC->ProjectWorldLocationToScreen(LootCenter, ScrPos) ||
+			ScrPos.X < 0.f || ScrPos.X >= ScrWidth ||
+			ScrPos.Y < 0.f || ScrPos.Y >= ScrHeight
+			) {continue; }
+
+		FHitResult SightHit;//保存射线碰到的物体，如果没碰到战利品，或先碰到了墙，就跳过它
+		if(!GetWorld()->LineTraceSingleByChannel(SightHit, ViewLct, LootCenter, ECC_Visibility, SightParams) ||
+			SightHit.GetActor() != *It) {continue; }
+
+		Res.Add(*It);
+	}
+
+	const FVector PlayerPos = GetActorLocation();
+	//按距离排列，让最近的物品排在前面
+	Res.Sort([PlayerPos](const ALootPickup& A, const ALootPickup& B) {
+		const float dstA = FVector::DistSquared(PlayerPos, A.GetActorLocation());
+		const float dstB = FVector::DistSquared(PlayerPos, B.GetActorLocation());
+
+		if (dstA == dstB) { return A.GetUniqueID() < B.GetUniqueID(); }
+		return dstA < dstB;
+		});
+
+	return Res;
 }
 
 //丢弃物品

@@ -68,6 +68,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	
 	//获取战利品名称
+	UFUNCTION(BlueprintPure, Category = "Loot")
 	FName GetLootName() const { return LootName; }
 	//获取战利品价值
 	int32 GetLootValue() const { return LootValue; }

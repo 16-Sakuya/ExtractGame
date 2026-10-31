@@ -106,9 +106,11 @@ public:
 	void ExfilSettle(int32 FinalValue, const FText& LootList);
 
 	//丢弃物品
-
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value);
+	//拾取物品
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	TArray<ALootPickup*> GetNearLoot() const;
 
 public:
 
