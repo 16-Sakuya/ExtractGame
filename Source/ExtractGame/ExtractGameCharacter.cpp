@@ -15,6 +15,8 @@
 #include "Exfil.h"
 #include "EngineUtils.h"//提供查找关卡中撤离点的TActorIterator
 #include "GameFramework/PlayerController.h"//提供玩家控制器函数
+#include "StashSaveGame.h"
+#include "Kismet/GameplayStatics.h"//提供读取和写入存档的函数
 
 AExtractGameCharacter::AExtractGameCharacter()
 {
@@ -166,6 +168,29 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 	//撤离点交互
 	for (TActorIterator<AExfil> Exfil(GetWorld()); Exfil; ++Exfil) {
 		if (!Exfil->isOverlap(this)) { continue;  }
+
+		const FString SlotName = TEXT("Stash");//指定仓库存档的名称
+		const int32 UserIndex = 0;//指定本机玩家的存档编号。以后读取仓库时必须使用相同的名称和编号
+		UStashSaveGame* Sth = Cast<UStashSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex));//从刚才指定的仓库存档读取数据
+		if (Sth == nullptr) {
+			Sth = Cast<UStashSaveGame>(UGameplayStatics::CreateSaveGameObject(UStashSaveGame::StaticClass()));//如果没有存档就新建一个
+		}
+		//检查仓库对象是否创建成功，如果失败就打印错误日志并返回
+		if (Sth == nullptr) {
+			UE_LOG(LogExtractGame, Error, TEXT("无法创建仓库存档对象"));
+			return;
+		}
+
+		for (const TPair<FName, int32>& Lt : LootCount) {
+			int32& StCnt = Sth->StashCnt.FindOrAdd(Lt.Key);
+			StCnt += Lt.Value;//本次数量加到仓库原有数量上
+		}
+
+		//把更新后的仓库写入同一个存档位置
+		if (!UGameplayStatics::SaveGameToSlot(Sth, SlotName, UserIndex)) {
+			UE_LOG(LogExtractGame, Error, TEXT("无法保存仓库存档"));
+			return;
+		}
 
 		hasOverlap = true;
 		UE_LOG(LogExtractGame, Display, TEXT("撤离结算：#%d"), TotalValue);
