@@ -81,8 +81,10 @@ void AExtractGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		//EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		//EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AExtractGameCharacter::DoJumpStart);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AExtractGameCharacter::DoJumpEnd);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AExtractGameCharacter::Move);
@@ -151,6 +153,7 @@ void AExtractGameCharacter::DoLook(float Yaw, float Pitch)
 void AExtractGameCharacter::DoJumpStart()
 {
 	// signal the character to jump
+	if (bInputLocked) { return; }   // 界面开着，直接吞掉这次起跳
 	Jump();
 }
 
@@ -321,4 +324,12 @@ bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<ALootPickup> Loo
 	TotalValue -= static_cast<int32>(Value);
 	if (*count == 0) { LootCount.Remove(ItemId); }
 	return true;
+}
+
+//实现开关函数
+void AExtractGameCharacter::SetInputLocked(bool bLocked)
+{
+	bInputLocked = bLocked;      // 记住当前状态
+	// 如果是刚锁上
+	if (bInputLocked){StopJumping(); }          // 把正在进行的跳跃立刻掐断，避免角色带着跳跃速度飞出去}
 }

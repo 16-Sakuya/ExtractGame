@@ -59,6 +59,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	int32 TotalValue = 0;
 
+	// 界面打开时锁住角色输入：移动、跳跃、交互都不响应
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
+	bool bInputLocked = false;
+
 	//是否已撤离
 	bool hasOverlap = false;
 
@@ -111,9 +115,14 @@ public:
 	//丢弃物品
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value);
+
 	//拾取物品
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	TArray<ALootPickup*> GetNearLoot() const;
+
+	// 蓝图调用：true = 锁住，false = 解锁
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetInputLocked(bool bLocked);
 
 public:
 
