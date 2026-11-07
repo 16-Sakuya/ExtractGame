@@ -56,6 +56,25 @@ AExtractGameCharacter::AExtractGameCharacter()
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
+void AExtractGameCharacter::BeginPlay() {
+	Super::BeginPlay();
+
+	if (UGameplayStatics::GetCurrentLevelName(this, true) == TEXT("L_Lobby")) { return; }
+	
+	UStashSaveGame* Save = Cast<UStashSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("Stash"), 0));
+	if (!Save || Save->CarryCnt.IsEmpty()) { return; }
+
+	const TMap<FName, int32>& CryItems = Save->CarryCnt;
+	const int32 CryVal = Save->CryVal;
+
+	Save->CarryCnt.Empty();
+	Save->CryVal = 0;
+	if (!UGameplayStatics::SaveGameToSlot(Save, TEXT("Stash"), 0)) { return; }
+
+	LootCount = CryItems;
+	TotalValue = CryVal;
+}
+
 void AExtractGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	// Set up action bindings
@@ -140,6 +159,7 @@ void AExtractGameCharacter::DoJumpEnd()
 	// signal the character to stop jumping
 	StopJumping();
 }
+
 //f按键映射
 void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 {

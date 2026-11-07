@@ -18,4 +18,13 @@ public:
 	//战利品清单表
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "Stash")
 	TMap<FName, int32> StashCnt;
+
+	//携带物品清单表
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "Stash")
+	TMap<FName, int32> CarryCnt;
+
+	//总价值
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame, Category = "Stash")
+	int32 CryVal = 0;
+
 };

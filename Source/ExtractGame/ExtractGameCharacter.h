@@ -83,6 +83,9 @@ protected:
 	//f按键映射
 	void Interact_f(const FInputActionValue& Value);
 
+	//覆盖开始游戏事件
+	virtual void BeginPlay() override;
+
 public:
 
 	/** Handles move inputs from either controls or UI interfaces */
