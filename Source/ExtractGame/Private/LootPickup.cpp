@@ -43,6 +43,16 @@ ALootPickup::ALootPickup()
 void ALootPickup::BeginPlay()
 {
 	Super::BeginPlay();
+	//入场开物理
+	if (!bDropped && bSettleOnBeginPlay && MeshComponent && MeshComponent->GetStaticMesh())
+	{
+		if (DroppedPhysics())   // 复用现成的"开物理"函数：可移动、开碰撞、开重力、重置计时
+		{
+			bSettling = true;   // 标记进入"入场落地"状态
+			MeshComponent->OnComponentHit.AddDynamic(this, &ALootPickup::OnLootHit);   // 绑定碰撞回调
+		}
+	}
+
 	// 显式把离线字体的第 0 张图集绑定到 TextRender 材质，避免运行时只绘制字符矩形。
 	if (Name && Name->Font && Name->TextMaterial && Name->Font->FontCacheType == EFontCacheType::Offline)
 	{
@@ -62,9 +72,16 @@ void ALootPickup::Tick(float DeltaTime)
 	//这里先等待至少 0.3 秒；物理刚启动时若尚未更新，就不会立刻关闭。IsAnyRigidBodyAwake() 为 false 时表示网格已休眠；随后关闭模拟，保留网格碰撞，让角色不能再推着它走
 	if (DrpToStl && MeshComponent) {
 		DrpPhysicsElapsed += DeltaTime;
-		if (DrpPhysicsElapsed >= 0.3f && !MeshComponent->IsAnyRigidBodyAwake()) {
-			MeshComponent->SetSimulatePhysics(false);
-			DrpToStl = false;
+
+		if (bSettling && DrpPhysicsElapsed > 5.f) {   // 兜底：5 秒还没落稳（掉出世界、卡在斜面上滑动）
+			StopSettlePhysics();
+		}
+		else if (DrpPhysicsElapsed >= 0.3f && !MeshComponent->IsAnyRigidBodyAwake()) {
+			if (bSettling) { StopSettlePhysics(); }   // 入场落地：按落地流程收尾
+			else {
+				MeshComponent->SetSimulatePhysics(false);  // 丢弃物：保持原来的行为（碰撞全保留，角色推不动）
+				DrpToStl = false;
+			}
 		}
 	}
 
@@ -166,4 +183,25 @@ bool ALootPickup::DroppedPhysics() {
 	DrpPhysicsElapsed = 0.f;//重置计时
 	DrpToStl = MeshComponent->IsSimulatingPhysics();//确认物理模拟确实启动并开始等待落稳
 	return DrpToStl;
+}
+
+//碰到地面就关物理
+void ALootPickup::OnLootHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!bSettling) { return; }              // 只在入场落地阶段处理，丢弃物不干扰
+	if (Hit.ImpactNormal.Z < 0.5f) { return; } // 撞墙、撞斜坡不算落地，继续掉
+	StopSettlePhysics();                      // 真正踩到朝上的平面了，收工
+}
+
+// 结束落地：关物理并恢复碰撞
+void ALootPickup::StopSettlePhysics()
+{
+	if (!MeshComponent) { return; }
+
+	bSettling = false;
+	DrpToStl = false;                                                       // 让 Tick 不再管它
+	MeshComponent->SetSimulatePhysics(false);                               // 关掉物理模拟，停在当前姿态
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // 碰撞保持完整
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);            // 所有通道都阻挡，包括 Pawn 和 Visibility
+	MeshComponent->OnComponentHit.RemoveDynamic(this, &ALootPickup::OnLootHit); // 解绑，避免重复触发
 }

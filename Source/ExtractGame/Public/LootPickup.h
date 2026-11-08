@@ -30,15 +30,27 @@ protected:
 	//检测范围球体组件
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USphereComponent* DetectionSphere;
+
 	//文本渲染组件，用于显示战利品名称
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UTextRenderComponent* Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+
 	//战利品名称
 	FName LootName = NAME_None;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
 	int32 LootValue;
+
+	// 入场时是否先落地再固定：场景里摆得比地面高的战利品用
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loot")
+	bool bSettleOnBeginPlay = true;
+
+	// 是否由运行时"丢弃"生成。丢弃物有自己的 DroppedPhysics 流程，不走入场落地
+	bool bDropped = false;
+
+	// 当前是否正在入场落地
+	bool bSettling = false;
 
 protected:
 	// Called when the game starts or when spawned
@@ -63,6 +75,13 @@ protected:
 		int32 OtherBodyIndex
 	);
 
+	// 网格碰到东西时的回调
+	UFUNCTION()
+	void OnLootHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	// 结束落地：关物理并恢复碰撞
+	void StopSettlePhysics();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -77,6 +96,7 @@ public:
 	void DroppedLoot(FName InName, int32 InValue) {
 		LootName = InName;
 		LootValue = InValue;
+		bDropped = true;      // 标记为运行时丢弃，跳过入场落地
 	}
 
 	//物理函数
