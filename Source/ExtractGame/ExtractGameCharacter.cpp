@@ -69,7 +69,7 @@ void AExtractGameCharacter::BeginPlay() {
 	UStashSaveGame* Save = Cast<UStashSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("Stash"), 0));
 	if (!Save || Save->CarryCnt.IsEmpty()) { return; }
 
-	const TMap<FName, int32>& CryItems = Save->CarryCnt;
+	const TMap<FName, int32> CryItems = Save->CarryCnt;
 	const int32 CryVal = Save->CryVal;
 
 	Save->CarryCnt.Empty();
@@ -364,4 +364,29 @@ bool AExtractGameCharacter::ConsumeMp(int32 Amount)
 	mp = FMath::Clamp(mp - Amount, 0, MaxMp);
 	OnMpChanged.Broadcast(mp, MaxMp);
 	return true;
+}
+
+void AExtractGameCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);   // 先让父类处理（它会广播委托等）
+
+	if (GetCharacterMovement() && GetCharacterMovement()->IsFalling())
+	{
+		FallStartZ = GetActorLocation().Z;      // 起跳/踏空的那一刻，记下高度
+		bFallTracked = true;                    // 标记"正在记录"
+	}
+}
+
+void AExtractGameCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);                         // 父类会处理落地动画/委托
+
+	if (!bFallTracked) { return; }               // 没记录过就跳过
+	bFallTracked = false;                        // 一次坠落只结算一次
+
+	const float FallDistance = FallStartZ - GetActorLocation().Z;   // 下落了多少厘米（正数）
+	if (FallDistance <= FallDamageThreshold) { return; }            // 10 米以内不扣血
+
+	const int32 Damage = FMath::FloorToInt((FallDistance - FallDamageThreshold) / FallDamagePerPoint);
+	if (Damage > 0) { ApplyDamage(Damage); }     // 走统一的受伤入口（会广播血条、判断死亡）
 }

@@ -88,6 +88,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
 	bool bInputLocked = false;
 
+	// 坠落伤害：起坠高度阈值（厘米）。10 米 = 1000 cm
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health")
+	float FallDamageThreshold = 500.f;
+
+	// 坠落伤害：超过阈值后每多少厘米扣 1 点
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health")
+	float FallDamagePerPoint = 10.f;
+
 	//是否已撤离
 	bool hasOverlap = false;
 
@@ -100,6 +108,12 @@ protected:
 
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	// 落地回调：算坠落高度、结算伤害
+	virtual void Landed(const FHitResult& Hit) override;
+
+	// 移动模式变化：记录进入下落瞬间的高度
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 
 protected:
 
@@ -172,4 +186,11 @@ public:
 
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+private:
+	// 开始下落那一帧的世界 Z（厘米）
+	float FallStartZ = 0.f;
+	// 是否正在记录一次坠落
+	bool bFallTracked = false;
+
 };
