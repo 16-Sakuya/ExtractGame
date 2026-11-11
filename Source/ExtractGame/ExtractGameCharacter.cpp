@@ -59,6 +59,11 @@ AExtractGameCharacter::AExtractGameCharacter()
 void AExtractGameCharacter::BeginPlay() {
 	Super::BeginPlay();
 
+	hp = MaxHp;
+	mp = MaxMp;
+	OnHpChanged.Broadcast(hp, MaxHp);
+	OnMpChanged.Broadcast(mp, MaxMp);
+
 	if (UGameplayStatics::GetCurrentLevelName(this, true) == TEXT("L_Lobby")) { return; }
 	
 	UStashSaveGame* Save = Cast<UStashSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("Stash"), 0));
@@ -332,4 +337,31 @@ void AExtractGameCharacter::SetInputLocked(bool bLocked)
 	bInputLocked = bLocked;      // 记住当前状态
 	// 如果是刚锁上
 	if (bInputLocked){StopJumping(); }          // 把正在进行的跳跃立刻掐断，避免角色带着跳跃速度飞出去}
+}
+
+void AExtractGameCharacter::ApplyDamage(int32 Amount)
+{
+	if (Amount <= 0 || bDead) { return; }                              // 非法输入或已死亡直接忽略
+	hp = FMath::Clamp(hp - Amount, 0, MaxHp);                 // 扣血并夹在 0..MaxHp
+	OnHpChanged.Broadcast(hp, MaxHp);                         // 通知所有监听者（UI）
+	// 血空了触发死亡钩子
+	if (hp <= 0) { 
+		bDead = true;
+		OnDead();
+	}
+}
+
+void AExtractGameCharacter::Heal(int32 Amount)
+{
+	if (Amount <= 0 || bDead) { return; }
+	hp = FMath::Clamp(hp + Amount, 0, MaxHp);
+	OnHpChanged.Broadcast(hp, MaxHp);
+}
+
+bool AExtractGameCharacter::ConsumeMp(int32 Amount)
+{
+	if (Amount <= 0 || mp < Amount || bDead) { return false; }         // 蓝不够就失败，不改数据
+	mp = FMath::Clamp(mp - Amount, 0, MaxMp);
+	OnMpChanged.Broadcast(mp, MaxMp);
+	return true;
 }

@@ -13,6 +13,9 @@ class UInputAction;
 class ALootPickup;
 struct FInputActionValue;
 
+//"数值变了"的广播类型，两个参数分别是当前值和上限
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVitalChanged, int32, Current, int32, Max);
+
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 /**
@@ -58,6 +61,28 @@ protected:
 	//总价值
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 	int32 TotalValue = 0;
+
+	// 血量 / 蓝量
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+	int32 hp = 100;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+	int32 mp = 100;
+
+	// 上限：EditDefaultsOnly 让它在蓝图类默认值里能改，运行时改不了
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health")
+	int32 MaxHp = 100;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health")
+	int32 MaxMp = 100;
+
+	// 变化广播：BlueprintAssignable 让蓝图能"绑定事件"
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnVitalChanged OnHpChanged;
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnVitalChanged OnMpChanged;
+
+	// 是否已经死亡：防止 OnDead 重复触发
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+	bool bDead = false;
 
 	// 界面打开时锁住角色输入：移动、跳跃、交互都不响应
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
@@ -124,6 +149,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void SetInputLocked(bool bLocked);
 
+	//受伤入口
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void ApplyDamage(int32 Amount);
+
+	//回血入口
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void Heal(int32 Amount);
+
+	//消耗蓝量入口
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	bool ConsumeMp(int32 Amount);
+
+	// 死亡时给蓝图一个钩子（倒地动画、回大厅、弹结算都行）
+	UFUNCTION(BlueprintImplementableEvent, Category = "Health")//C++ 只负责触发，具体做什么在蓝图里实现
+	void OnDead();
+
 public:
 
 	/** Returns CameraBoom subobject **/
@@ -132,4 +173,3 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
-
