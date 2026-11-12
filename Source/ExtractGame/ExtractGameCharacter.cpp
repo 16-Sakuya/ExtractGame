@@ -17,6 +17,8 @@
 #include "GameFramework/PlayerController.h"//提供玩家控制器函数
 #include "StashSaveGame.h"
 #include "Kismet/GameplayStatics.h"//提供读取和写入存档的函数
+#include "WeaponBase.h"
+#include "Components/SkeletalMeshComponent.h"
 
 AExtractGameCharacter::AExtractGameCharacter()
 {
@@ -389,4 +391,38 @@ void AExtractGameCharacter::Landed(const FHitResult& Hit)
 
 	const int32 Damage = FMath::FloorToInt((FallDistance - FallDamageThreshold) / FallDamagePerPoint);
 	if (Damage > 0) { ApplyDamage(Damage); }     // 走统一的受伤入口（会广播血条、判断死亡）
+}
+
+AWeaponBase* AExtractGameCharacter::EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, float InDurability)
+{
+	if (!WeaponClass || !GetMesh()) { return nullptr; }      // 没类或没骨骼网格就放弃
+
+	UnequipWeapon();                                          // 先卸掉旧的
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;                                      // 关键：武器靠 Owner 找到开火者
+	Params.Instigator = this;
+
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(
+		WeaponClass, GetActorTransform(), Params);
+	if (!NewWeapon) { return nullptr; }
+
+	NewWeapon->InitStats(InAmmo, InDurability);               // 写入 DT 里的弹药/耐久
+
+	NewWeapon->AttachToComponent(                             // 挂到手上
+		GetMesh(),
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		NewWeapon->AttachSocketName);
+
+	CurrentWeapon = NewWeapon;
+	return NewWeapon;
+}
+
+void AExtractGameCharacter::UnequipWeapon()
+{
+	if (IsValid(CurrentWeapon))
+	{
+		CurrentWeapon->Destroy();
+		CurrentWeapon = nullptr;
+	}
 }

@@ -12,6 +12,7 @@ class UCameraComponent;
 class UInputAction;
 class ALootPickup;
 struct FInputActionValue;
+class AWeaponBase;
 
 //"数值变了"的广播类型，两个参数分别是当前值和上限
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVitalChanged, int32, Current, int32, Max);
@@ -99,6 +100,10 @@ protected:
 	//是否已撤离
 	bool hasOverlap = false;
 
+	// 当前武器
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	AWeaponBase* CurrentWeapon = nullptr;
+
 public:
 
 	/** Constructor */
@@ -171,6 +176,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void Heal(int32 Amount);
 
+	//获取当前血量和蓝量
+	UFUNCTION(BlueprintPure, Category = "Health")
+	int32 GetHp() const { return hp; }
+	UFUNCTION(BlueprintPure, Category = "Health")
+	int32 GetMp() const { return mp; }
+
 	//消耗蓝量入口
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	bool ConsumeMp(int32 Amount);
@@ -178,6 +189,14 @@ public:
 	// 死亡时给蓝图一个钩子（倒地动画、回大厅、弹结算都行）
 	UFUNCTION(BlueprintImplementableEvent, Category = "Health")//C++ 只负责触发，具体做什么在蓝图里实现
 	void OnDead();
+
+	// 生成并装备一把武器，返回新武器（失败返回 nullptr）
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	AWeaponBase* EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, float InDurability);
+
+	// 卸下当前武器（销毁）
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UnequipWeapon();
 
 public:
 

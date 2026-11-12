@@ -16,6 +16,9 @@
 *.userosscache
 *.sln.docstates
 
+# python工具
+.tools/
+
 # IDE and operating system files
 .vscode/
 .DS_Store
