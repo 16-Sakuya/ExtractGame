@@ -21,3 +21,6 @@
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# 战利品文件夹
+Loot/
