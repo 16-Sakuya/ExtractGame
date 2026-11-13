@@ -11,7 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "ExtractGame.h"
-#include "LootPickup.h"
+#include "PickupBase.h"
 #include "Exfil.h"
 #include "EngineUtils.h"//提供查找关卡中撤离点的TActorIterator
 #include "GameFramework/PlayerController.h"//提供玩家控制器函数
@@ -177,12 +177,12 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 	UE_LOG(LogExtractGame, Display, TEXT("f按下"));
 	if (GetController() == nullptr || GetWorld() == nullptr) { return;  }
 
-	const TArray<ALootPickup*> NearLoot = GetNearLoot();//读取刚筛选并排序的列表
+	const TArray<APickupBase*> NearLoot = GetNearLoot();//读取刚筛选并排序的列表
 	if (!NearLoot.IsEmpty()) {
-		ALootPickup* Loot = NearLoot[0];
+		APickupBase* Loot = NearLoot[0];
 		if (IsValid(Loot)) {//检查物品仍有效
-			const FName LtName = Loot->GetLootName();
-			const int32 LtVal = Loot->GetLootValue();
+			const FName LtName = Loot->GetPickupId();
+			const int32 LtVal = Loot->GetPickupValue();
 
 			if (!Loot->Destroy()) { return; }
 
@@ -236,8 +236,8 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 }
 
 //显示周围战利品
-TArray<ALootPickup*> AExtractGameCharacter::GetNearLoot() const{
-	TArray<ALootPickup*> Res;//存放找到的战利品
+TArray<APickupBase*> AExtractGameCharacter::GetNearLoot() const{
+	TArray<APickupBase*> Res;//存放找到的可拾取物
 	if (!GetWorld()) { return Res; }//关卡不可用时返回空列表
 
 	const APlayerController* PC = Cast<APlayerController>(GetController());//获取玩家控制器
@@ -254,7 +254,7 @@ TArray<ALootPickup*> AExtractGameCharacter::GetNearLoot() const{
 	PC->GetPlayerViewPoint(ViewLct, ViewRtt);//取得摄像机视角
 	const FCollisionQueryParams SightParams(SCENE_QUERY_STAT(NearLootSight), false, this);//设置射线检测，并忽略角色自身
 
-	for (TActorIterator<ALootPickup> It(GetWorld()); It; ++It) {
+	for (TActorIterator<APickupBase> It(GetWorld()); It; ++It) {
 		const FVector LootToPlayer = It->GetActorLocation() - GetActorLocation();//战利品相对角色的位置
 		const float HrztReach = GetCapsuleComponent()->GetScaledCapsuleRadius() + 50.f;//角色胶囊体半径再向外延申50cm
 		const float VtcReach = GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 50.f;//限制上下距离防止把不同楼层的战利品算入
@@ -280,7 +280,7 @@ TArray<ALootPickup*> AExtractGameCharacter::GetNearLoot() const{
 
 	const FVector PlayerPos = GetActorLocation();
 	//按距离排列，让最近的物品排在前面
-	Res.Sort([PlayerPos](const ALootPickup& A, const ALootPickup& B) {
+	Res.Sort([PlayerPos](const APickupBase& A, const APickupBase& B) {
 		const float dstA = FVector::DistSquared(PlayerPos, A.GetActorLocation());
 		const float dstB = FVector::DistSquared(PlayerPos, B.GetActorLocation());
 
@@ -292,7 +292,7 @@ TArray<ALootPickup*> AExtractGameCharacter::GetNearLoot() const{
 }
 
 //丢弃物品
-bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value) {
+bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value) {
 	int32* count = LootCount.Find(ItemId);
 	if (!count || *count <= 0 || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld() ||!FollowCamera) { return false; }
 
@@ -313,13 +313,13 @@ bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<ALootPickup> Loo
 	}
 	const FTransform SpawnTrsf(FRotator::ZeroRotator, SpawnLct);//把最终位置交给现有的延迟生成代码
 
-	ALootPickup* DroppedLoot = GetWorld()->SpawnActorDeferred<ALootPickup>(//先创建 Actor，暂不完成它的生成
+	APickupBase* DroppedLoot = GetWorld()->SpawnActorDeferred<APickupBase>(//先创建 Actor，暂不完成它的生成
 		LootClass.Get(), SpawnTrsf, nullptr, this, //使用数据表指定的战利品蓝图，不指定拥有者，角色作为生成者
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn//允许在指定位置创建；是否与附近物体重叠要在游戏中检查
 	);
 	if (!DroppedLoot) { return false; }//创建失败就退出，背包暂不扣物品
 
-	DroppedLoot->DroppedLoot(ItemId, static_cast<int32>(Value));//在物体进入场景前写入物品 ID 和价值
+	DroppedLoot->InitDroppedPickup(ItemId, static_cast<int32>(Value));//在物体进入场景前写入物品 ID 和价值
 	DroppedLoot->FinishSpawning(SpawnTrsf);//完成生成。UE 的延迟生成流程要求调用这一步
 
 	if (!DroppedLoot->DroppedPhysics()) {//尝试让刚生成的网格开启碰撞、物理模拟和重力

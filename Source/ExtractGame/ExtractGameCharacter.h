@@ -10,7 +10,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
-class ALootPickup;
+class APickupBase;
 struct FInputActionValue;
 class AWeaponBase;
 
@@ -158,11 +158,11 @@ public:
 
 	//丢弃物品
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	bool DropALoot(FName ItemId, TSubclassOf<ALootPickup> LootClass, int64 Value);
+	bool DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value);
 
 	//拾取物品
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	TArray<ALootPickup*> GetNearLoot() const;
+	TArray<APickupBase*> GetNearLoot() const;
 
 	// 蓝图调用：true = 锁住，false = 解锁
 	UFUNCTION(BlueprintCallable, Category = "Input")
@@ -197,6 +197,10 @@ public:
 	// 卸下当前武器（销毁）
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UnequipWeapon();
+
+	// 获取当前武器（可能是 nullptr）
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	AWeaponBase* GetCurrentWeapon() const { return CurrentWeapon; }
 
 public:
 

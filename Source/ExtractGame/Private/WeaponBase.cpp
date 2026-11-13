@@ -1,16 +1,69 @@
 #include "WeaponBase.h"
-#include "Components/StaticMeshComponent.h"
+
+#include "Components/SphereComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "ExtractGameCharacter.h"
 
 AWeaponBase::AWeaponBase()
 {
-	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	SetRootComponent(Mesh);
+	// 网格、检测球、头顶文字都由 APickupBase 构造函数创建
+}
+
+void AWeaponBase::BeginPlay()
+{
+	// 装备流程里生成的武器：跳过入场落地，直接进装备态
+	if (bEquippedOnSpawn) { bSettleOnBeginPlay = false; }
+
+	Super::BeginPlay();
+
+	if (bEquippedOnSpawn) { SetEquipped(true); }
 }
 
 AExtractGameCharacter* AWeaponBase::GetOwnerCharacter() const
 {
 	return Cast<AExtractGameCharacter>(GetOwner());
+}
+
+FString AWeaponBase::GetPickupPrompt() const
+{
+	return FString::Printf(TEXT("%s(#%d)\n按[F]拾取"), *WeaponId.ToString(), WeaponValue);
+}
+
+void AWeaponBase::ApplyPickupData(FName InId, int32 InValue)
+{
+	WeaponId = InId;
+	WeaponValue = InValue;
+}
+
+void AWeaponBase::InitStats(int32 InAmmo, float InDurability)
+{
+	if (bUseAmmo) { Ammo = FMath::Clamp(InAmmo, 0, MaxAmmo); }
+	if (bUseDurability) { Durability = FMath::Clamp(InDurability, 0.f, MaxDurability); }
+}
+
+void AWeaponBase::SetEquipped(bool bEquipped)
+{
+	bIsEquipped = bEquipped;
+
+	if (MeshComponent)
+	{
+		MeshComponent->SetSimulatePhysics(false);
+		MeshComponent->SetCollisionEnabled(bEquipped
+			? ECollisionEnabled::NoCollision
+			: ECollisionEnabled::QueryAndPhysics);
+	}
+
+	SetActorEnableCollision(!bEquipped);
+
+	// 装备后不要再触发"按 F 拾取"，也不要显示头顶文字
+	if (DetectionSphere) { DetectionSphere->SetGenerateOverlapEvents(!bEquipped); }
+	if (Name) { Name->SetVisibility(false); }
+
+	if (bEquipped)
+	{
+		DrpToStl = false;
+		bSettling = false;
+	}
 }
 
 bool AWeaponBase::TryFire()
@@ -41,10 +94,4 @@ bool AWeaponBase::Reload()
 	if (!bUseAmmo) { return false; }
 	Ammo = MaxAmmo;
 	return true;
-}
-
-void AWeaponBase::InitStats(int32 InAmmo, float InDurability)
-{
-	if (bUseAmmo) { Ammo = FMath::Clamp(InAmmo, 0, MaxAmmo); }          // 只有耗弹武器才写弹药
-	if (bUseDurability) { Durability = FMath::Clamp(InDurability, 0.f, MaxDurability); }
 }
