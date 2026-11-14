@@ -91,11 +91,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Durability")
 	bool bUseDurability = false;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Durability")
-	float MaxDurability = 100.f;
+	int MaxDurability = 100;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Durability")
-	float Durability = 100.f;
+	int Durability = 100;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Durability")
-	float DurabilityPerShot = 1.f;
+	int DurabilityPerShot = 1;
 
 	// ---- 额外资源 ----
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Cost")

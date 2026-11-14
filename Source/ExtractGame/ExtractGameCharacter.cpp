@@ -18,6 +18,7 @@
 #include "StashSaveGame.h"
 #include "Kismet/GameplayStatics.h"//提供读取和写入存档的函数
 #include "WeaponBase.h"
+#include "Engine/World.h"//提供 SpawnActorDeferred / FinishSpawning 等世界相关函数
 #include "Components/SkeletalMeshComponent.h"
 
 AExtractGameCharacter::AExtractGameCharacter()
@@ -393,26 +394,37 @@ void AExtractGameCharacter::Landed(const FHitResult& Hit)
 	if (Damage > 0) { ApplyDamage(Damage); }     // 走统一的受伤入口（会广播血条、判断死亡）
 }
 
-AWeaponBase* AExtractGameCharacter::EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, float InDurability)
+AWeaponBase* AExtractGameCharacter::EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, int32 InDurability)
 {
-	if (!WeaponClass || !GetMesh()) { return nullptr; }      // 没类或没骨骼网格就放弃
+	if (!WeaponClass || !GetMesh()) { return nullptr; }   // 没类或没骨骼网格，直接放弃
 
-	UnequipWeapon();                                          // 先卸掉旧的
+	UnequipWeapon();                                      // 先把旧武器销毁
 
-	FActorSpawnParameters Params;
-	Params.Owner = this;                                      // 关键：武器靠 Owner 找到开火者
-	Params.Instigator = this;
+	// ① 延迟生成：先创建对象，但【不执行 BeginPlay】
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActorDeferred<AWeaponBase>(
+		WeaponClass,                      // 要生成的具体武器蓝图
+		GetActorTransform(),              // 生成位置（其实马上会被挂点覆盖）
+		this,                             // Owner
+		this,                             // Instigator
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);  // 不做碰撞检测，避免生成失败
 
-	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(
-		WeaponClass, GetActorTransform(), Params);
 	if (!NewWeapon) { return nullptr; }
 
-	NewWeapon->InitStats(InAmmo, InDurability);               // 写入 DT 里的弹药/耐久
+	// ② 在 BeginPlay 之前打上"我是被装备的"标记
+	//    注意：bSettleOnBeginPlay 是 APickupBase 的 protected 成员，这里不能直接改；
+	//    bEquippedOnSpawn = true 之后，AWeaponBase::BeginPlay 内部会自己把它置 false
+	NewWeapon->bEquippedOnSpawn = true;
 
-	NewWeapon->AttachToComponent(                             // 挂到手上
-		GetMesh(),
-		FAttachmentTransformRules::SnapToTargetIncludingScale,
-		NewWeapon->AttachSocketName);
+	// ③ 先挂到手上（此时 BeginPlay 还没跑，武器不会先在世界里闪一下）
+	NewWeapon->AttachToComponent(
+		GetMesh(),                                          // 角色的骨骼网格
+		FAttachmentTransformRules::SnapToTargetIncludingScale,  // 跟随插槽的位移/旋转/缩放
+		NewWeapon->AttachSocketName);                       // 插槽名（默认 hand_r）
+
+	NewWeapon->InitStats(InAmmo, InDurability);           // 写入 DT 里的弹药/耐久
+
+	// ④ 完成生成：BeginPlay 执行，因为标记已设，会走装备态
+	NewWeapon->FinishSpawning(GetActorTransform());
 
 	CurrentWeapon = NewWeapon;
 	return NewWeapon;
@@ -425,4 +437,14 @@ void AExtractGameCharacter::UnequipWeapon()
 		CurrentWeapon->Destroy();
 		CurrentWeapon = nullptr;
 	}
+}
+
+bool AExtractGameCharacter::ConsumeLoot(FName ItemId, int32 Count)
+{
+	int32* Cnt = LootCount.Find(ItemId);          // 找这一行
+	if (!Cnt || *Cnt <= 0 || Count <= 0) { return false; }   // 没有/非法
+
+	*Cnt -= Count;                                 // 扣数量
+	if (*Cnt <= 0) { LootCount.Remove(ItemId); }   // 扣到 0 就删行
+	return true;
 }

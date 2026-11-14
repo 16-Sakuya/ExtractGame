@@ -192,7 +192,7 @@ public:
 
 	// 生成并装备一把武器，返回新武器（失败返回 nullptr）
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	AWeaponBase* EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, float InDurability);
+	AWeaponBase* EquipWeaponClass(TSubclassOf<AWeaponBase> WeaponClass, int32 InAmmo, int32 InDurability);
 
 	// 卸下当前武器（销毁）
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
@@ -201,6 +201,10 @@ public:
 	// 获取当前武器（可能是 nullptr）
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	AWeaponBase* GetCurrentWeapon() const { return CurrentWeapon; }
+
+	// 从背包清单里扣掉指定物品，返回是否扣成功
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool ConsumeLoot(FName ItemId, int32 Count = 1);
 
 public:
 
