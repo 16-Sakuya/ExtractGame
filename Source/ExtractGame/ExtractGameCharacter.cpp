@@ -230,7 +230,7 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 			UE_LOG(LogExtractGame, Display, TEXT("战利品：%s	数量：%d"), *tLoot.Key.ToString(), tLoot.Value);
 			LootList += FString::Printf(TEXT("%20s	%d\n"), *tLoot.Key.ToString(), tLoot.Value);
 		}
-		if (LootList.IsEmpty()) { LootList = TEXT("未获取战利品"); }
+		if (LootList.IsEmpty()) { LootList = TEXT(""); }
 		ExfilSettle(TotalValue, FText::FromString(LootList));
 		return;
 	}
@@ -418,8 +418,11 @@ AWeaponBase* AExtractGameCharacter::EquipWeaponClass(TSubclassOf<AWeaponBase> We
 	// ③ 先挂到手上（此时 BeginPlay 还没跑，武器不会先在世界里闪一下）
 	NewWeapon->AttachToComponent(
 		GetMesh(),                                          // 角色的骨骼网格
-		FAttachmentTransformRules::SnapToTargetIncludingScale,  // 跟随插槽的位移/旋转/缩放
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,  // 不跟随插槽的位移/旋转/缩放
 		NewWeapon->AttachSocketName);                       // 插槽名（默认 hand_r）
+
+	// 关键：把武器 Actor 的相对变换归一，之后它完全对齐插槽的位置和朝向
+	NewWeapon->SetActorRelativeTransform(FTransform::Identity);
 
 	NewWeapon->InitStats(InAmmo, InDurability);           // 写入 DT 里的弹药/耐久
 
