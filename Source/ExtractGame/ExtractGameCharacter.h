@@ -206,6 +206,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool ConsumeLoot(FName ItemId, int32 Count = 1);
 
+	// 往背包清单里加物品（卸下武器时用）
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddLoot(FName ItemId, int32 Count = 1);
+
 public:
 
 	/** Returns CameraBoom subobject **/

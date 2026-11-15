@@ -448,3 +448,11 @@ bool AExtractGameCharacter::ConsumeLoot(FName ItemId, int32 Count)
 	if (*Cnt <= 0) { LootCount.Remove(ItemId); }   // 扣到 0 就删行
 	return true;
 }
+
+void AExtractGameCharacter::AddLoot(FName ItemId, int32 Count)
+{
+	if (ItemId.IsNone() || Count <= 0) { return; }    // 空 ID 或非法数量直接返回
+
+	int32& Cnt = LootCount.FindOrAdd(ItemId);         // 没有就新增一行，有就取引用
+	Cnt += Count;                                     // 数量累加
+}
