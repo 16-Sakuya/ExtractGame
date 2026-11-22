@@ -184,14 +184,15 @@ void AExtractGameCharacter::Interact_f(const FInputActionValue&)
 		if (IsValid(Loot)) {//检查物品仍有效
 			const FName LtName = Loot->GetPickupId();
 			const int32 LtVal = Loot->GetPickupValue();
+			const int32 LtCnt = FMath::Max(1, Loot->GetPickupCount());//一次拾取多少个（普通战利品是 1，子弹盒是整盒数量）
 
 			if (!Loot->Destroy()) { return; }
 
 			int32& Cnt = LootCount.FindOrAdd(LtName);
-			++Cnt;
-			TotalValue += LtVal;
+			Cnt += LtCnt;                   // 按拾取数量叠加
+			TotalValue += LtVal * LtCnt;    // 价值按个数累加
 
-			UE_LOG(LogExtractGame, Display, TEXT("拾取战利品：%s	数量：%d	价值：#%d"), *LtName.ToString(), Cnt, LtVal);
+			UE_LOG(LogExtractGame, Display, TEXT("拾取战利品：%s	数量：%d（本次 %d）	价值：#%d"), *LtName.ToString(), Cnt, LtCnt, LtVal);
 			return;
 		}
 	}
@@ -293,9 +294,10 @@ TArray<APickupBase*> AExtractGameCharacter::GetNearLoot() const{
 }
 
 //丢弃物品
-bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value) {
+bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value, int32 Count) {
 	int32* count = LootCount.Find(ItemId);
-	if (!count || *count <= 0 || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld() ||!FollowCamera) { return false; }
+	//Count 必须 >0 且不能超过背包里的数量
+	if (!count || *count <= 0 || Count <= 0 || Count > *count || !LootClass.Get() || Value<0 || Value > MAX_int32 || !GetWorld() ||!FollowCamera) { return false; }
 
 	const FVector CmrLct = FollowCamera->GetComponentLocation();//相机位置
 	const FVector DrpDir = FRotator(0.f, FollowCamera->GetComponentRotation().Yaw, 0.f).Vector();//获取相机朝向的水平方向
@@ -320,7 +322,7 @@ bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<APickupBase> Loo
 	);
 	if (!DroppedLoot) { return false; }//创建失败就退出，背包暂不扣物品
 
-	DroppedLoot->InitDroppedPickup(ItemId, static_cast<int32>(Value));//在物体进入场景前写入物品 ID 和价值
+	DroppedLoot->InitDroppedPickup(ItemId, static_cast<int32>(Value), Count);//在物体进入场景前写入物品 ID、价值和数量
 	DroppedLoot->FinishSpawning(SpawnTrsf);//完成生成。UE 的延迟生成流程要求调用这一步
 
 	if (!DroppedLoot->DroppedPhysics()) {//尝试让刚生成的网格开启碰撞、物理模拟和重力
@@ -328,9 +330,9 @@ bool AExtractGameCharacter::DropALoot(FName ItemId, TSubclassOf<APickupBase> Loo
 		return false;
 	}
 
-	--(*count);
-	TotalValue -= static_cast<int32>(Value);
-	if (*count == 0) { LootCount.Remove(ItemId); }
+	*count -= Count;                                   // 按丢弃数量扣
+	TotalValue -= static_cast<int32>(Value) * Count;    // 价值也按个数扣
+	if (*count <= 0) { LootCount.Remove(ItemId); }      // 扣到 0 就删这一行
 	return true;
 }
 

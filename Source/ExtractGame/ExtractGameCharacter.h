@@ -156,9 +156,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Exfil")
 	void ExfilSettle(int32 FinalValue, const FText& LootList);
 
-	//丢弃物品
+	//丢弃物品（Count：一次丢弃多少个，默认 1；子弹这类整堆丢弃时传实际数量）
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	bool DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value);
+	bool DropALoot(FName ItemId, TSubclassOf<APickupBase> LootClass, int64 Value, int32 Count = 1);
 
 	//拾取物品
 	UFUNCTION(BlueprintCallable, Category = "Inventory")

@@ -9,6 +9,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
 #include "Math/RotationMatrix.h"
+#include "Engine/Font.h"                    // UFont（离线字体）
+#include "UObject/ConstructorHelpers.h"     // FObjectFinder（构造函数里按路径找资产）
 
 APickupBase::APickupBase()
 {
@@ -35,6 +37,20 @@ APickupBase::APickupBase()
 	Name->SetHorizontalAlignment(EHTA_Center);
 	Name->SetWorldSize(30.f);
 	Name->SetVisibility(false);
+
+	// 所有拾取物默认用项目的离线中文字体 + 对应的文本材质
+	// （离线字体必须配带 "Font" 字体参数的材质，引擎会自动把字符图集绑进去）
+	static ConstructorHelpers::FObjectFinder<UFont> OfflineFont(TEXT("/Game/UI/Fonts/bb4171_Font.bb4171_Font"));
+	if (OfflineFont.Succeeded())
+	{
+		Name->SetFont(OfflineFont.Object);            // SetFont 会同时算好字符高度缩放
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LootTextMat(TEXT("/Game/UI/Fonts/M_LootTextAlpha.M_LootTextAlpha"));
+	if (LootTextMat.Succeeded())
+	{
+		Name->SetTextMaterial(LootTextMat.Object);    // 材质带 Font 参数，引擎负责绑定图集
+	}
 }
 
 void APickupBase::BeginPlay()
@@ -131,10 +147,11 @@ void APickupBase::Tick(float DeltaTime)
 	}
 }
 
-void APickupBase::InitDroppedPickup(FName InId, int32 InValue)
+void APickupBase::InitDroppedPickup(FName InId, int32 InValue, int32 InCount)
 {
 	bDropped = true;                        // 丢弃物不走进场落地，直接由调用方开物理
 	ApplyPickupData(InId, InValue);         // 子类把 ID/价值写进自己的字段
+	ApplyPickupCount(InCount);              // 子类把数量写进自己的字段（子弹盒这类才用得上）
 }
 
 void APickupBase::OnDetectionBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)

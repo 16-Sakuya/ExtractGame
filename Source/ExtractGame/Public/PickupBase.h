@@ -37,8 +37,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Pickup")
 	virtual int32 GetPickupValue() const { return 0; }
 
-	// 运行时"丢弃"生成时调用：记录 ID/价值，并标记为丢弃物（跳过入场落地）
-	void InitDroppedPickup(FName InId, int32 InValue);
+	// 一次拾取能得到多少个（默认 1，子弹盒子类返回 30 之类的数量）
+	UFUNCTION(BlueprintPure, Category = "Pickup")
+	virtual int32 GetPickupCount() const { return 1; }
+
+	// 运行时"丢弃"生成时调用：记录 ID/价值/数量，并标记为丢弃物（跳过入场落地）
+	void InitDroppedPickup(FName InId, int32 InValue, int32 InCount = 1);
 
 protected:
 	virtual void BeginPlay() override;
@@ -48,6 +52,9 @@ protected:
 
 	// 子类把 ID/价值写进自己的字段
 	virtual void ApplyPickupData(FName InId, int32 InValue) {}
+
+	// 子类把"数量"写进自己的字段（丢弃时用；只有需要计数的子类才覆写）
+	virtual void ApplyPickupCount(int32 InCount) {}
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* MeshComponent;
